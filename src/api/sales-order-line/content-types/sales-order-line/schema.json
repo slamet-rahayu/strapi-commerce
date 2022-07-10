@@ -1,0 +1,40 @@
+{
+  "kind": "collectionType",
+  "collectionName": "sales_order_lines",
+  "info": {
+    "singularName": "sales-order-line",
+    "pluralName": "sales-order-lines",
+    "displayName": "Sales Order Line",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string"
+    },
+    "price_total": {
+      "type": "float"
+    },
+    "price_unit": {
+      "type": "float"
+    },
+    "qty": {
+      "type": "integer"
+    },
+    "sales_order": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::sales-order.sales-order",
+      "inversedBy": "sales_order_lines"
+    },
+    "product": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::product.product",
+      "inversedBy": "sales_order_line"
+    }
+  }
+}
