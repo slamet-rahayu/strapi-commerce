@@ -18,5 +18,14 @@ module.exports = {
        middlewares: [],
      },
     },
+    {
+     method: 'DELETE',
+     path: '/shop/cart',
+     handler: 'shop.cartDelete',
+     config: {
+       policies: [],
+       middlewares: [],
+     },
+    },
   ],
 };

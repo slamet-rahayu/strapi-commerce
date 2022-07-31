@@ -31,11 +31,25 @@ module.exports = () => ({
       throw new Error(error.message)
     }
   },
+  async computeAmountTotal(user_id) {
+    try {
+      const o_model = strapi.db.query('api::sales-order.sales-order')
+      const so_draft = await this.soDraft(user_id);
+      const amount_total = so_draft.sales_order_lines.map((v) => v.price_total).reduce((a,b) => a + b)
+      await o_model.update({ where: { id: so_draft.id}, data: { amount_total } })
+      return
+    } catch (error) {
+      throw new Error(error.message)      
+    }
+  },
   async cartUpdate(product_id, qty, user_id) {
     try {
-      const product = await strapi.db.query('api::product.product').findOne({where: { id: product_id }})
+      const p_model = strapi.db.query('api::product.product')
+      const ol_model = strapi.db.query('api::sales-order-line.sales-order-line')
+      const o_model = strapi.db.query('api::sales-order.sales-order')
+      const product = await p_model.findOne({where: { id: product_id }})
       const so_draft = await this.soDraft(user_id)
-      const sol = await strapi.db.query('api::sales-order-line.sales-order-line').findOne({
+      const sol = await ol_model.findOne({
         where : { 
           $and: [
             { product: product_id },
@@ -43,65 +57,46 @@ module.exports = () => ({
           ]
         }
       })
+      const ol_data = {
+        name: product.name,
+        product: product.id,
+        price_unit: product.price,
+        price_total: product.price * qty,
+        sales_order: so_draft.id,
+        qty
+      }
       if (!sol) {
-        await strapi.db.query('api::sales-order-line.sales-order-line').create({
-          data: {
-            name: product.name,
-            product: product.id,
-            price_unit: product.price,
-            price_total: product.price * qty,
-            sales_order: so_draft.id
-          }
+        await ol_model.create({
+          data: ol_data
         })
       } else {
-        await strapi.db.query('api::sales-order-line.sales-order-line').update({
+        await ol_model.update({
           where: { id: sol.id },
-          data: {
-            name: product.name,
-            product: product.id,
-            price_unit: product.price,
-            price_total: product.price * qty,
-            sales_order: so_draft.id
-          }
+          data: ol_data
         })
-
-        const so_drafts = await this.soDraft(user_id)
-
-        const amount_total = so_drafts.sales_order_lines.reduce((a,b) => a.price_total + b.price_total, b)
-
-        // await strapi.db.query('api::sales-order.sales-order').update({
-        //   where: { id: so_draft.id },
-        //   data: {
-            
-        //   }
-        // })
-
-        return amount_total;
       }
-      return await this.soDraft(user_id);
+      await this.computeAmountTotal(user_id)
+      return await this.soDraft(user_id)
     } catch (error) {
       throw new Error(error.message)
     }
   },
-  async deleteCart(line_id, user_id) {
-    const model = strapi.db.query('api::sales-order.sales-order')
+  async cartDelete(line_ids, user_id) {
     try {
+      const ol_model = strapi.db.query('api::sales-order-line.sales-order-line')
+      const so_draft = await this.soDraft(user_id)
       const ol_query = {
           where: {
           $and: [
-            { users_permissions_user: user_id },
-            { sales_order_lines: line_id }
+            { sales_order: so_draft.id },
+            { id: { $in: line_ids } }
           ]
         }
       }
-      const ol = await model.findOne(ol_query)
-      if (!ol) {
-        throw ({httpCode: 404, message: "Order Not Found"})
-      }
-      await strapi.db.query('api::sales-order-line.sales-order-line').delete({where: { id: line_id }})
-      return await model.findOne(ol_query)
+      await ol_model.deleteMany(ol_query)
+      return await this.soDraft(user_id)
     } catch (error) {
-      
+      throw error
     }
   },
   async cartList(user_id) {
